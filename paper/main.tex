@@ -13,6 +13,8 @@
 \usepackage{graphicx}
 \usepackage{natbib}
 \usepackage{doi}
+\usepackage{algorithm}
+\usepackage{algorithmic}
 
 
 
@@ -145,8 +147,35 @@ $${\frac{1}{G} \sum_{i = 1}^G {\frac{1}{T_{y_i}} \sum_{t = 1}^{T_{y_i}} \{\min [
 
 \subsection{Энтропийная регуляризация}
 Стадия RL является достаточно стохастичной, что может привести к "коллапсу энтропии", когда энтропия распределения становится близка к нулю, и политика становится близка к детерминированной. Чтобы этого избежать, рассматривается влияние регуляризационного члена, имеющего вид:
-$$R = \beta H(\pi_{\theta}(y | x)), \quad H(\pi_{\theta}(y | x)) = -\sum_{t = 1}^T {\pi_{\theta} (y_t | x, y_{<t}) \log{\pi_{\theta} (y_t | x, y_{<t})}}$$
+$$R = \gamma H(\pi_{\theta}(y | x)), \quad H(\pi_{\theta}(y | x)) = -\sum_{t = 1}^T {\pi_{\theta} (y_t | x, y_{<t}) \log{\pi_{\theta} (y_t | x, y_{<t})}}$$
 Здесь $\beta$ - гиперпараметр регуляризации, $H$ - энтропия распределения.
+
+\subsection{Базовый алгоритм}
+
+\begin{algorithm} [H]
+\caption{Алгоритм обучения}
+\begin{algorithmic}[1]
+\REQUIRE Model $\pi_{\theta}$, SFT dataset $\mathcal{D}_{SFT}$, RL dataset $\mathcal{D}_{RL}$, reward function $r_{\phi}$, hyperparameters $sft\_epochs, rl\_epochs, batch\_size, learning\_rate, \lambda, \beta, \gamma$,
+\ENSURE Trained model $\pi_{\theta_{new}}$
+\STATE SFT
+\FOR{EPOCH in sft\_epochs}
+    \FOR{BATCH in$\mathcal{D}_{SFT}$}
+        compute $L_{SFT}$
+        update $\theta$
+    \ENDFOR
+\ENDFOR
+\STATE RL
+\FOR{EPOCH in rl\_epochs}
+    \FOR{x in $\mathcal{D}_{RL}$}
+        sample trajectories $\{\tau_i\}_{i = 1}^k \sim \pi_{\theta}(\cdot|x)$
+        compute rewards $\{r_i\}_{i = 1}^k$ using function $r_{\phi}$
+        compute $L_{RL}$
+        update $\theta$
+    \ENDFOR
+\ENDFOR
+\RETURN $\pi_{\theta_{new}}$
+\end{algorithmic}
+\end{algorithm}
 
 \section{Эксперименты}
 Основной целью экспериментов из данной секции является получение качества, сравнимого с имеющимися результатами на известных бенчмарках, оценивающих математическое рассуждение языковых моделей.
@@ -167,83 +196,50 @@ $$R = \beta H(\pi_{\theta}(y | x)), \quad H(\pi_{\theta}(y | x)) = -\sum_{t = 1}
 
 \paragraph{DeepSeekMath} - классический подход, сочетающий SFT и GRPO
 
-Результаты данных методов на рассматриваемых бенчмарках представлены в таблице ():
+Результаты данных методов на рассматриваемых бенчмарках представлены в таблице (\ref{tab:baseline_results}):
 
 \begin{table}[t]
 \centering
-\label{tab:results}
 \begin{tabular}{lcc}
 \toprule
 \textbf{Модель} & \textbf{GSM8K} & \textbf{MATH-500} \\
 \midrule
-ReLIFT & - & 87.4 \\
-SuperRL & 78.9 & - \\
+ReLIFT & - & 72.4 \\
+SuperRL & 68.9 & - \\
 DeepSeekMath & 64.2 & - \\
 \bottomrule
 \end{tabular}
 \caption{Результаты бейзлайнов на GSM8K и MATH-500 (Exact Match, \%).}
+\label{tab:baseline_results}
 \end{table}
 
-
-
-
-
-
-\section{Examples of citations, figures, tables, references}
-\label{sec:others}
-
-\subsection{Citations}
-Citations use \verb+natbib+. The documentation may be found at
-\begin{center}
-	\url{http://mirrors.ctan.org/macros/latex/contrib/natbib/natnotes.pdf}
-\end{center}
-
-Here is an example usage of the two main commands (\verb+citet+ and \verb+citep+): Some people thought a thing \citep{kour2014real, hadash2018estimate} but other people thought something else \citep{kour2014fast}. Many people have speculated that if we knew exactly why \citet{kour2014fast} thought this\dots
-
-\subsection{Figures}
-\lipsum[10]
-See Figure \ref{fig:fig1}. Here is how you add footnotes. \footnote{Sample of the first footnote.}
-\lipsum[11]
-
-\begin{figure}
-	\centering
-	\includegraphics[width=0.5\textwidth]{../figures/log_reg_cs_exp.eps}
-	\caption{Sample figure caption.}
-	\label{fig:fig1}
-\end{figure}
-
-\subsection{Tables}
-See awesome Table~\ref{tab:table}.
-
-The documentation for \verb+booktabs+ (`Publication quality tables in LaTeX') is available from:
-\begin{center}
-	\url{https://www.ctan.org/pkg/booktabs}
-\end{center}
-
-
-\begin{table}
-	\caption{Sample table title}
-	\centering
-	\begin{tabular}{lll}
-		\toprule
-		\multicolumn{2}{c}{Part}                   \\
-		\cmidrule(r){1-2}
-		Name     & Description     & Size ($\mu$m) \\
-		\midrule
-		Dendrite & Input terminal  & $\sim$100     \\
-		Axon     & Output terminal & $\sim$10      \\
-		Soma     & Cell body       & up to $10^6$  \\
-		\bottomrule
-	\end{tabular}
-	\label{tab:table}
+\subsection{Результаты экспериментов}
+Для проведения экспериментов была сформирована обучающая выборка путем совмещения 60\% каждого из двух рассматриваемых датасетов \texttt{GSM8K} и \texttt{MATH-500}. Были рассмотрены следующие итоговые сетапы: (i) предобученная модель и 10 эпох SFT; (ii) предобученная модель и 10 эпох RL; (iii) последовательное выполнение 5 эпох SFT и 5 эпох RL; (iv) предыдущие подходы с добавлением энтропийной регуляризации. В качестве базовой модели использовалась легкая \texttt{Qwen2.5 - 0.5B}. Результаты экспериментов представлены в таблице(\ref{tab:exp_results}).
+\begin{table}[t]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Setup} & \textbf{GSM8K} & \textbf{MATH-500} \\
+\midrule
+SFT & 44.1 & 33.2 \\
+RL & 31.8 & 20.7 \\
+SFT + RL & 51.6 & 36.1 \\
+SFT + Entropy reg & 45.2 & 33.9 \\
+RL + Entropy reg & 33.0 & 20.8 \\
+SFT RL + Entropy reg & \textbf{52.7} & \textbf{37.4} \\
+\bottomrule
+\end{tabular}
+\caption{Результаты бейзлайнов на GSM8K и MATH-500 (Exact Match, \%).}
+\label{tab:exp_results}
 \end{table}
 
-\subsection{Lists}
-\begin{itemize}
-	\item Lorem ipsum dolor sit amet
-	\item consectetur adipiscing elit.
-	\item Aliquam dignissim blandit est, in dictum tortor gravida eget. In ac rutrum magna.
-\end{itemize}
+\section{Заключение}
+Проведенные эксперименты демонстрируют высокую чувствительность небольшой модели к нестабильному обучению на стадии RL, что выражается в значительном снижении итогового качества при отсутствии стадии SFT на обоих бенчмарках (31.8\% на \texttt{GSM8K} и 20.7\% на \texttt{MATH-500} соответственно). При этом RL помогает модели скорректировать свои предсказания и улучшить итоговое качество после выполнения стадии SFT (51.6\% на \texttt{GSM8K} и 36.1\% на \texttt{MATH-500} соответственно).
+
+Энтропийная регуляризация проявляет себя как важный фактор устойчивости. Эксперименты подтверждают, что дополнительное стимулирование исследования помогает маленькой модели улучшить свою обобщающую способность, что позволяет достичь наилучшего качества для выбранных сетапов (52.7\% на \texttt{GSM8K} и 37.4\% на \texttt{MATH-500} соответственно).
+
+Результаты показывают, что маленькая модель при правильно подобранной конфигурации обучения позволяет достичь сравнимых результатов на исследованных датасетах. В дальнейшем будет исследовано влияние предварительной дистилляции на качество работы модели при дальнейшем ее обучении вышеупомянутыми способами.
+
 
 
 \bibliographystyle{unsrtnat}
